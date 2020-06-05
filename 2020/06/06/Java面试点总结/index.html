@@ -1,234 +1,393 @@
-<?xml version="1.0" encoding="utf-8"?>
-<search>
-  <entry>
-    <title>博客介绍</title>
-    <url>/2020/05/08/%E5%8D%9A%E5%AE%A2%E7%AE%80%E4%BB%8B/</url>
-    <content><![CDATA[<p>Hi，大家好，这里是本人的新博客基地，之前的<a href="https://blog.csdn.net/qq_40311709" target="_blank" rel="noopener">博客</a>是在CSDN平台，由于各种原因长时间没有更新，同时想要有更加独立的，更简洁界面的博客，因此将地址转到本站。</p>
-<p>今后会追求写出更高质量，更有深度的文章。</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>深入理解生产者－消费者队列</title>
-    <url>/2020/05/15/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E7%94%9F%E4%BA%A7%E8%80%85%EF%BC%8D%E6%B6%88%E8%B4%B9%E8%80%85%E9%98%9F%E5%88%97/</url>
-    <content><![CDATA[<h1 id="生产者-消费者关系"><a href="#生产者-消费者关系" class="headerlink" title="生产者-消费者关系"></a>生产者-消费者关系</h1><p>生产者－消费者关系个人首先在操作系统中接触到，它是信号量（Semaphore，资源使用情况的抽象）机制的一种应用。</p>
-<blockquote><p>注意：信号量在 C 语言中是一个结构体型变量，其中 int 型 value 包含表示可用资源数，value = 0：无可用资源，value &lt; 0：有|value|个进程等待此资源。还有 L 为等待此类资源的进程 PCB 表链。<strong>一类资源对应一种信号量。</strong></p>
-</blockquote>
+<!DOCTYPE html>
 
-<p>生产者－消费者关系中包含一组生产者和一组消费者，两种角色并发地操作一个共享的缓冲池。生产者向缓冲池中放入数据，消费者从缓冲池中取出并消费数据。缓冲池可以缓解生产者和消费者之间的性能差，但不幸的是缓冲池有一定容量，生产者无法向满的缓冲池再放入数据，消费者也无法从空的缓冲池中取出数据。关系如下：</p>
-<img src="/2020/05/15/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E7%94%9F%E4%BA%A7%E8%80%85%EF%BC%8D%E6%B6%88%E8%B4%B9%E8%80%85%E9%98%9F%E5%88%97/%E7%94%9F%E4%BA%A7%E8%80%85%EF%BC%8D%E6%B6%88%E8%B4%B9%E8%80%85%E5%85%B3%E7%B3%BB.png" class="" title="[生产者-消费者关系]">
 
-<h1 id="操作系统中用信号量机制解决生产者-消费者问题"><a href="#操作系统中用信号量机制解决生产者-消费者问题" class="headerlink" title="操作系统中用信号量机制解决生产者-消费者问题"></a>操作系统中用信号量机制解决生产者-消费者问题</h1><p>生产者－消费者模式是经典的并发设计模型，操作系统可以对信号量进行 P-V 操作来实现进程间并发，其中 P 操作表示请求系统分配一个单位的资源，V 操作释放一个单位的资源。假设有个信号量 S，由信号量定义可知，P(S) 指请求 S 的一个单位资源，即 S = S - 1；V(S) 释放 S 的一个单位资源，即 S = S + 1。</p>
-<p>生产者在向缓存池中放入数据时先检查缓冲池中是否还有容量，对应的先需要执行 P(empty)，即向缓冲池请求一个单位资源，每放入一个数据就有 empty.value -= 1。empty 表示缓冲池空闲的资源，empty 值为 0 就表示缓冲池为空，empty 值一般初始为缓冲池的总容量。放入后需要 V(full) 操作来告诉缓冲池放入了新的数据，其中 full 信号量表示缓冲池中已占有的资源，full 值初始为 0。</p>
-<p>消费者消费数据时确保缓冲池容量不能为空。先通过 P(full) 从缓冲池中取出资源，然后通过 V(empty) 操作返回资源。</p>
-<img src="/2020/05/15/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E7%94%9F%E4%BA%A7%E8%80%85%EF%BC%8D%E6%B6%88%E8%B4%B9%E8%80%85%E9%98%9F%E5%88%97/P-V.png" class="" title="[生产者-消费者问题中的 P-V 操作]">
 
-<h1 id="生产者-消费者队列实践"><a href="#生产者-消费者队列实践" class="headerlink" title="生产者-消费者队列实践"></a>生产者-消费者队列实践</h1><h2 id="用-JDK-中的-BlockingQueue-实现"><a href="#用-JDK-中的-BlockingQueue-实现" class="headerlink" title="用 JDK 中的 BlockingQueue 实现"></a>用 JDK 中的 BlockingQueue 实现</h2><h3 id="BlockingQueue"><a href="#BlockingQueue" class="headerlink" title="BlockingQueue"></a>BlockingQueue</h3><p>BlockingQueue 可以作为生产者-消费者队列，它是一个接口，值得注意的是当有消息放入队列时。其常见的实现类包括 ArrayBlockingQueue 和 LinkedBlockingQueue，前者用数组实现，后者用链表实现，那么就造成 ArrayBlockingQueue 是有固定容量的，LinkedBlockingQueue 可以是无限容量（不超过物理容量）。</p>
-<p>拿 ArrayBlockingQueue 来举例，放入队列有 offer() 和 put() 方法。offer() 方法放入消息时，如果队列没满直接返回 false 否则返回 true。对于 put() 方法，当队列为满时会一直等待，直至队列有空闲位置放入退出。出队就主要是 take() 方法，该方法在队为空时会一直等待新的入队消息。</p>
-<pre><code>&#x2F;** Main lock guarding all access *&#x2F;
-final ReentrantLock lock;
+  
 
-&#x2F;** Condition for waiting takes *&#x2F;
-private final Condition notEmpty;
 
-&#x2F;** Condition for waiting puts *&#x2F;
-private final Condition notFull;</code></pre>
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
 
-<p>从源码中可以看到 BlockingQueue 使用 ReentrantLock 来实现锁操作的，并且配合 Condition 实现类似操作系统中的信号量机制。notEmpty 对应上述的 empty 信号量，notFull 就对应信号量 full。</p>
-<pre><code class="java">//入队
-public void put(E e) throws InterruptedException {
-    checkNotNull(e);
-    final ReentrantLock lock = this.lock;
-    lock.lockInterruptibly();
-    try {
-        while (count == items.length)
-            notFull.await();
-        enqueue(e);
-    } finally {
-        lock.unlock();
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Java," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="一、Java基础平台无关性.java 文件 -&gt; 编译成 .class 文件 -&gt; 经过平台相应的 JVM 解析成对应的机器码执行 这样做的优点是：  避免每次执行都需要的各种检查 可以将别的 JVM 上的语言编译成 .class 文件，具有兼容性  谈谈反射Java 反射机制是在运行状态中，对于任意的类，都可以知道它的方法和属性，也可以调用相应的方法和属性，这种动态获取类的信息与调用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java面试点总结">
+<meta property="og:url" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="Bai&#39;s Blog">
+<meta property="og:description" content="一、Java基础平台无关性.java 文件 -&gt; 编译成 .class 文件 -&gt; 经过平台相应的 JVM 解析成对应的机器码执行 这样做的优点是：  避免每次执行都需要的各种检查 可以将别的 JVM 上的语言编译成 .class 文件，具有兼容性  谈谈反射Java 反射机制是在运行状态中，对于任意的类，都可以知道它的方法和属性，也可以调用相应的方法和属性，这种动态获取类的信息与调用">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap1.8-.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap1.8+.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hash.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap-resize-1.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap-resize-2.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap-resize-3.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/conccurentHashMap-put.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/BIO.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/NIO.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/select.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/select-message.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/AIO.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/JMM.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/%E5%B8%B8%E8%A7%81%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/%E7%BA%BF%E7%A8%8B%E7%8A%B6%E6%80%81.jpeg">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/%E4%B9%90%E8%A7%82%E9%94%81%E6%82%B2%E8%A7%82%E9%94%81.png">
+<meta property="og:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/Java%E4%B8%AD%E7%9A%84%E9%94%81.png">
+<meta property="article:published_time" content="2020-06-05T17:07:05.000Z">
+<meta property="article:modified_time" content="2020-06-05T17:14:55.656Z">
+<meta property="article:author" content="Jacky Bai">
+<meta property="article:tag" content="Java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/hashmap1.8-.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
     }
-}
-//出队
-public E take() throws InterruptedException {
-    final ReentrantLock lock = this.lock;
-    lock.lockInterruptibly();
-    try {
-        while (count == 0)
-            notEmpty.await();
-        return dequeue();
-    } finally {
-        lock.unlock();
-    }
-}</code></pre>
-<h3 id="Producer-Consumer-Queue-Demo"><a href="#Producer-Consumer-Queue-Demo" class="headerlink" title="Producer-Consumer Queue Demo"></a>Producer-Consumer Queue Demo</h3><p>在了解了相关概念后就动手实现一个 Demo吧。下例代码用 BlockingQueue 作为生产者-消费者队列，3 个生产者 Producer 和 1 个消费者 Consumer 共享该队列。Producer 向队列添加整数，而 Consumer 消费生产的数据（简单地输出信息），最后利用线程池提交执行。</p>
-<pre><code class="java">public class ProducerConsumerQueue {
+  };
+</script>
 
-    /* 生产者 */
-    private static class Producer implements Runnable{
-        volatile boolean isRunning = true;  //运行状态
-        BlockingQueue&lt;Integer&gt; queue; //作为临界区
-        static AtomicInteger count = new AtomicInteger();    //数据总数
-        final int SLEEP_TIME = 1000; //休眠时间
 
-        Producer(BlockingQueue&lt;Integer&gt; queue) {
-            this.queue = queue;
-        }
 
-        @Override
-        public void run() {
-            System.out.println(&quot;Start Producer: &quot; + Thread.currentThread().getId());
+  <link rel="canonical" href="http://xbaith/2020/06/06/Java面试点总结/"/>
 
-            try {
-                while (isRunning) {
-                    Thread.sleep(SLEEP_TIME);
-                    int data = count.incrementAndGet();
-                    System.out.println(data + &quot; is produced&quot;);
-                    if(!queue.offer(data, 2, TimeUnit.SECONDS)) {
-                        System.err.println(&quot;failed to produce &quot; + data);
-                    }
-                }
-            }catch (InterruptedException e){
-                e.printStackTrace();
-                Thread.currentThread().interrupt();
-            }
-        }
 
-        public void stopRunning() {
-            isRunning = false;
-        }
-    }
 
-    /* 消费者 */
-    private static class Consumer implements Runnable{
-        BlockingQueue&lt;Integer&gt; queue;
-        final int SLEEP_TIME = 1000;
 
-        Consumer(BlockingQueue&lt;Integer&gt; queue) {
-            this.queue = queue;
-        }
 
-        @Override
-        public void run() {
-            System.out.println(&quot;Start Consumer: &quot; + Thread.currentThread().getId());
+  <title>Java面试点总结 | Bai's Blog</title>
+  
 
-            try{
-                while(true) {
-                    int data = queue.take();   //消费数据
-                    System.out.println(data + &quot; is consumed&quot;);
-                    Thread.sleep(SLEEP_TIME);
-                }
-            }catch (InterruptedException e) {
-                e.printStackTrace();
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
 
-    public static void main(String[] args) throws InterruptedException {
-        ArrayBlockingQueue&lt;Integer&gt; queue = new ArrayBlockingQueue&lt;&gt;(10);
-        Producer producerA = new Producer(queue);
-        Producer producerB = new Producer(queue);
-        Producer producerC = new Producer(queue);
-        Consumer consumerA = new Consumer(queue);
 
-        ExecutorService service = Executors.newCachedThreadPool();
-        service.submit(producerA);
-        service.submit(producerB);
-        service.submit(producerC);
-        service.submit(consumerA);
 
-        Thread.sleep(10 * 1000);
-        producerA.stopRunning();
-        producerB.stopRunning();
-        producerC.stopRunning();
-        System.out.println(&quot;stop producing...&quot;);
 
-        service.shutdown();
-    }
-}</code></pre>
-<h2 id="Disruptor-实现高性能生产者-消费者队列"><a href="#Disruptor-实现高性能生产者-消费者队列" class="headerlink" title="Disruptor 实现高性能生产者-消费者队列"></a>Disruptor 实现高性能生产者-消费者队列</h2><p>Disruptor 是英国外汇交易公司 LMAX 开发的一个高性能队列，研发的初衷是解决内存队列的延迟问题（在性能测试中发现竟然与 I/O 操作处于同样的数量级）。基于 Disruptor 开发的系统单线程能支撑每秒 600 万订单，2010 年在 QCon 演讲后，获得了业界关注。</p>
-<p>目前，包括 Apache Storm、Camel、Log4j 2 在内的很多知名项目都应用了 Disruptor 以获取高性能。</p>
-<blockquote><p>注意：这里所说的队列是系统内部的内存队列，而不是Kafka这样的分布式队列。</p>
-<p>推荐阅读：<a href="https://tech.meituan.com/2016/11/18/disruptor.html" target="_blank" rel="noopener">美团技术团队实践</a></p>
-</blockquote>
 
-<h3 id="简单示例"><a href="#简单示例" class="headerlink" title="简单示例"></a>简单示例</h3><pre><code class="java">public class DisruptorPCQueue {
 
-    /* 消息 */
-    private static class Data {
-        private int value;
 
-        public int getValue() {
-            return value;
-        }
+<meta name="generator" content="Hexo 4.2.0"></head>
 
-        public void setValue(int value) {
-            this.value = value;
-        }
-    }
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
 
-    private static class Producer {
-        private final RingBuffer&lt;Data&gt; ringBuffer;   //环形缓冲区
+  
+  
+    
+  
 
-        private Producer(RingBuffer&lt;Data&gt; ringBuffer) {
-            this.ringBuffer = ringBuffer;
-        }
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
 
-        public void pushData(ByteBuffer byteBuffer) {
-            long sequence = ringBuffer.next();
-            Data data = ringBuffer.get(sequence);
-            data.setValue(byteBuffer.getInt(0)); //填充数据
-            ringBuffer.publish(sequence);
-        }
-    }
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
 
-    private static class Consumer implements WorkHandler&lt;Data&gt; {
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Bai's Blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">对于知识，输出应大于输入</p>
+      
+  </div>
 
-        @Override
-        public void onEvent(Data data) throws Exception {
-            System.out.println(&quot;Consumer &quot; + Thread.currentThread().getId()
-                    + &quot; process data: [&quot; + data.getValue() + &quot;]&quot;);
-        }
-    }
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
 
-    private static class DataFactory implements EventFactory&lt;Data&gt; {
-        @Override
-        public Data newInstance() {
-            return new Data();
-        }
-    }
+<nav class="site-nav">
+  
 
-    public static void main(String[] args) throws InterruptedException {
-        Disruptor&lt;Data&gt; disruptor = new Disruptor&lt;&gt;(new DataFactory(),
-                1024,
-                Executors.defaultThreadFactory());
-        disruptor.handleEventsWithWorkerPool(new Consumer(),
-                new Consumer(), new Consumer());
-        disruptor.start();
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
 
-        RingBuffer&lt;Data&gt; ringBuffer = disruptor.getRingBuffer();
-        Producer producer = new Producer(ringBuffer);
-        ByteBuffer byteBuffer = ByteBuffer.allocate(8);
-        for(int n = 0;; n++) {
-            System.out.println(&quot;add data &quot; + n);
-            byteBuffer.putInt(0, n);
-            producer.pushData(byteBuffer);
-            Thread.sleep(100);
-        }
-    }
-}</code></pre>
-]]></content>
-      <categories>
-        <category>Java</category>
-      </categories>
-      <tags>
-        <tag>Java并发</tag>
-        <tag>操作系统</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Java面试点总结</title>
-    <url>/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/</url>
-    <content><![CDATA[<h1 id="一、Java基础"><a href="#一、Java基础" class="headerlink" title="一、Java基础"></a>一、Java基础</h1><h2 id="平台无关性"><a href="#平台无关性" class="headerlink" title="平台无关性"></a>平台无关性</h2><p>.java 文件 -&gt; 编译成 .class 文件 -&gt; 经过平台相应的 JVM 解析成对应的机器码执行</p>
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jacky Bai">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Bai's Blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Java面试点总结</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-06-06T01:07:05+08:00">
+                2020-06-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2020/06/06/Java面试点总结/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv">阅读
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>次
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="一、Java基础"><a href="#一、Java基础" class="headerlink" title="一、Java基础"></a>一、Java基础</h1><h2 id="平台无关性"><a href="#平台无关性" class="headerlink" title="平台无关性"></a>平台无关性</h2><p>.java 文件 -&gt; 编译成 .class 文件 -&gt; 经过平台相应的 JVM 解析成对应的机器码执行</p>
 <p>这样做的优点是：</p>
 <ul>
 <li>避免每次执行都需要的各种检查</li>
@@ -1177,9 +1336,795 @@ synchronized(object) {}    </code></pre></li>
 <li>threadFactory：线程工厂，用于创建线程。</li>
 <li>handler：拒绝策略。当任务多过来不及处理时，如何拒绝任务。</li>
 </ul>
-]]></content>
-      <tags>
-        <tag>Java</tag>
-      </tags>
-  </entry>
-</search>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Java/" rel="tag"># Java</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/05/15/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E7%94%9F%E4%BA%A7%E8%80%85%EF%BC%8D%E6%B6%88%E8%B4%B9%E8%80%85%E9%98%9F%E5%88%97/" rel="next" title="深入理解生产者－消费者队列">
+                <i class="fa fa-chevron-left"></i> 深入理解生产者－消费者队列
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        
+<script>
+  with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='//bdimg.share.baidu.com/static/api/js/share.js?cdnversion='+~(-new Date()/36e5)];
+</script>
+
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="disqus_thread">
+        <noscript>
+          Please enable JavaScript to view the
+          <a href="https://disqus.com/?ref_noscript" target="_blank" rel="noopener">comments powered by Disqus.</a>
+        </noscript>
+      </div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Jacky Bai</p>
+              <p class="site-description motion-element" itemprop="description">对于知识，输出应大于输入</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7Carchive">
+              
+                  <span class="site-state-item-count">3</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">3</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/XBaith" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:tocreationbai@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-globe"></i>E-Mail</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、Java基础"><span class="nav-number">1.</span> <span class="nav-text">一、Java基础</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#平台无关性"><span class="nav-number">1.1.</span> <span class="nav-text">平台无关性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#谈谈反射"><span class="nav-number">1.2.</span> <span class="nav-text">谈谈反射</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#final-关键字"><span class="nav-number">1.3.</span> <span class="nav-text">final 关键字</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#transient-关键字"><span class="nav-number">1.4.</span> <span class="nav-text">transient 关键字</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#String-是如何实现不可变的？"><span class="nav-number">1.5.</span> <span class="nav-text">String 是如何实现不可变的？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#String-为什么设置为不可变？"><span class="nav-number">1.6.</span> <span class="nav-text">String 为什么设置为不可变？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#String、StringBuilder-和-StringBuffer-区别"><span class="nav-number">1.7.</span> <span class="nav-text">String、StringBuilder 和 StringBuffer 区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#异常体系"><span class="nav-number">1.8.</span> <span class="nav-text">异常体系</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RuntimeException"><span class="nav-number">1.8.1.</span> <span class="nav-text">RuntimeException</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#非-RuntimException"><span class="nav-number">1.8.2.</span> <span class="nav-text">非 RuntimException</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Error"><span class="nav-number">1.8.3.</span> <span class="nav-text">Error</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exception、Error-运行时异常与一般异常有何异同"><span class="nav-number">1.8.4.</span> <span class="nav-text">Exception、Error 运行时异常与一般异常有何异同</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Java-异常处理原则"><span class="nav-number">1.8.5.</span> <span class="nav-text">Java 异常处理原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#try-catch-性能问题"><span class="nav-number">1.8.6.</span> <span class="nav-text">try-catch 性能问题</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#接口和抽象类的区别"><span class="nav-number">1.9.</span> <span class="nav-text">接口和抽象类的区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hashCode-与-equals"><span class="nav-number">1.10.</span> <span class="nav-text">hashCode 与 equals</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#hashCode-介绍"><span class="nav-number">1.10.1.</span> <span class="nav-text">hashCode() 介绍</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么要有-hashCode"><span class="nav-number">1.10.2.</span> <span class="nav-text">为什么要有 hashCode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hashCode-与-equals-的相关规定"><span class="nav-number">1.10.3.</span> <span class="nav-text">hashCode()与 equals()的相关规定</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么要重写-hashcode-还要重写-equals-？"><span class="nav-number">1.10.4.</span> <span class="nav-text">为什么要重写 hashcode()还要重写 equals()？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#String-中-hashcode-的实现"><span class="nav-number">1.10.5.</span> <span class="nav-text">String 中 hashcode 的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么以-31-为质数"><span class="nav-number">1.10.5.1.</span> <span class="nav-text">为什么以 31 为质数</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#和-equals-的区别"><span class="nav-number">1.11.</span> <span class="nav-text">&#x3D;&#x3D;和 equals 的区别</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#"><span class="nav-number">1.11.1.</span> <span class="nav-text">&#x3D;&#x3D;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#equals"><span class="nav-number">1.11.2.</span> <span class="nav-text">equals</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java-集合框架"><span class="nav-number">1.12.</span> <span class="nav-text">Java 集合框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#HashMap"><span class="nav-number">1.12.1.</span> <span class="nav-text">HashMap</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么-HashMap-不用-LinkedList-而选用数组？"><span class="nav-number">1.12.1.1.</span> <span class="nav-text">为什么 HashMap 不用 LinkedList 而选用数组？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么不用-ArrayList？"><span class="nav-number">1.12.1.2.</span> <span class="nav-text">为什么不用 ArrayList？</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#为什么扩容是-2-的次幂？"><span class="nav-number">1.12.1.2.1.</span> <span class="nav-text">为什么扩容是 2 的次幂？</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HashMap-扩容问题"><span class="nav-number">1.12.1.3.</span> <span class="nav-text">HashMap 扩容问题</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#hashCode-确定哈希桶数组索引位置"><span class="nav-number">1.12.1.3.1.</span> <span class="nav-text">hashCode()确定哈希桶数组索引位置</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#为什么要先高-16-位异或低-16-位再取模运算？"><span class="nav-number">1.12.1.3.2.</span> <span class="nav-text">为什么要先高 16 位异或低 16 位再取模运算？</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Hashmap-的-get-put-的过程"><span class="nav-number">1.12.1.4.</span> <span class="nav-text">Hashmap 的 get&#x2F;put 的过程</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#put-过程"><span class="nav-number">1.12.1.4.1.</span> <span class="nav-text">put 过程</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#get-过程"><span class="nav-number">1.12.1.4.2.</span> <span class="nav-text">get 过程</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#加载因子为什么是-0-75-转红黑树的节点数为什么是-8？"><span class="nav-number">1.12.1.5.</span> <span class="nav-text">加载因子为什么是 0.75&#x2F;转红黑树的节点数为什么是 8？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#扩容机制"><span class="nav-number">1.12.1.6.</span> <span class="nav-text">扩容机制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JDK1-8-的-HashMap-与-1-7-的区别"><span class="nav-number">1.12.1.7.</span> <span class="nav-text">JDK1.8 的 HashMap 与 1.7 的区别</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HashMap1-7-为什么不安全？"><span class="nav-number">1.12.1.8.</span> <span class="nav-text">HashMap1.7 为什么不安全？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#hash-冲突你还知道哪些解决办法？"><span class="nav-number">1.12.1.9.</span> <span class="nav-text">hash 冲突你还知道哪些解决办法？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConccurentHashMap"><span class="nav-number">1.12.2.</span> <span class="nav-text">ConccurentHashMap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HashMap、HashTable、ConccurentHashMap的区别"><span class="nav-number">1.12.3.</span> <span class="nav-text">HashMap、HashTable、ConccurentHashMap的区别</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IO机制"><span class="nav-number">1.13.</span> <span class="nav-text">IO机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#BIO"><span class="nav-number">1.13.1.</span> <span class="nav-text">BIO</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NIO"><span class="nav-number">1.13.2.</span> <span class="nav-text">NIO</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多路复用"><span class="nav-number">1.13.3.</span> <span class="nav-text">多路复用</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#select、poll、epoll-的区别"><span class="nav-number">1.13.3.1.</span> <span class="nav-text">select、poll、epoll 的区别</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AIO"><span class="nav-number">1.13.4.</span> <span class="nav-text">AIO</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、JVM"><span class="nav-number">2.</span> <span class="nav-text">二、JVM</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ClassLoader"><span class="nav-number">2.1.</span> <span class="nav-text">ClassLoader</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#作用"><span class="nav-number">2.1.1.</span> <span class="nav-text">作用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#种类"><span class="nav-number">2.1.2.</span> <span class="nav-text">种类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#流程"><span class="nav-number">2.1.3.</span> <span class="nav-text">流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么需要双亲委派模型"><span class="nav-number">2.1.4.</span> <span class="nav-text">为什么需要双亲委派模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#类加载的方式"><span class="nav-number">2.1.5.</span> <span class="nav-text">类加载的方式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#loadClass-和-forName-的区别"><span class="nav-number">2.1.5.1.</span> <span class="nav-text">loadClass() 和 forName() 的区别</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#简述强、软、弱和虚引用"><span class="nav-number">2.2.</span> <span class="nav-text">简述强、软、弱和虚引用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#强引用"><span class="nav-number">2.2.1.</span> <span class="nav-text">强引用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#软引用"><span class="nav-number">2.2.2.</span> <span class="nav-text">软引用</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java内存模型"><span class="nav-number">2.3.</span> <span class="nav-text">Java内存模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#堆和栈的联系"><span class="nav-number">2.3.1.</span> <span class="nav-text">堆和栈的联系</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM-三大性能调优参数-Xmx-Xms-Xss"><span class="nav-number">2.3.2.</span> <span class="nav-text">JVM 三大性能调优参数-Xmx,-Xms,-Xss</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#finalize-方法"><span class="nav-number">2.4.</span> <span class="nav-text">finalize()方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GC"><span class="nav-number">2.5.</span> <span class="nav-text">GC</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#简述垃圾收集算法以及各自的特点"><span class="nav-number">2.5.1.</span> <span class="nav-text">简述垃圾收集算法以及各自的特点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#常见的垃圾收集器"><span class="nav-number">2.5.2.</span> <span class="nav-text">常见的垃圾收集器</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#CMS"><span class="nav-number">2.5.2.1.</span> <span class="nav-text">CMS</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#G1"><span class="nav-number">2.5.2.2.</span> <span class="nav-text">G1</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三、Java-并发"><span class="nav-number">3.</span> <span class="nav-text">三、Java 并发</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#进程和线程区别与联系"><span class="nav-number">3.1.</span> <span class="nav-text">进程和线程区别与联系</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thread-中-start-和-run-的区别"><span class="nav-number">3.2.</span> <span class="nav-text">Thread 中 start()和 run()的区别</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么不直接调用-run-方法？"><span class="nav-number">3.2.1.</span> <span class="nav-text">为什么不直接调用 run() 方法？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thread-和-Runnable"><span class="nav-number">3.3.</span> <span class="nav-text">Thread 和 Runnable</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#创建线程有哪几种方式"><span class="nav-number">3.4.</span> <span class="nav-text">创建线程有哪几种方式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实现处理线程的返回值"><span class="nav-number">3.5.</span> <span class="nav-text">实现处理线程的返回值</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Runnable-和-Callable-有什么区别"><span class="nav-number">3.6.</span> <span class="nav-text">Runnable 和 Callable 有什么区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程的状态"><span class="nav-number">3.7.</span> <span class="nav-text">线程的状态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程的各种状态的切换"><span class="nav-number">3.8.</span> <span class="nav-text">线程的各种状态的切换</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sleep-和-wait-的区别"><span class="nav-number">3.9.</span> <span class="nav-text">sleep()和 wait()的区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#notify-和-notifyAll-有什么区别"><span class="nav-number">3.10.</span> <span class="nav-text">notify()和 notifyAll()有什么区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#yield"><span class="nav-number">3.11.</span> <span class="nav-text">yield()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#中断线程-interrupt"><span class="nav-number">3.12.</span> <span class="nav-text">中断线程 interrupt()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#什么是上下文切换？"><span class="nav-number">3.13.</span> <span class="nav-text">什么是上下文切换？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#i-是线程安全的吗？"><span class="nav-number">3.14.</span> <span class="nav-text">i++ 是线程安全的吗？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#synchronized"><span class="nav-number">3.15.</span> <span class="nav-text">synchronized</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#synchronized-的实现原理"><span class="nav-number">3.15.1.</span> <span class="nav-text">synchronized 的实现原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JDK1-6-之后的-synchronized-关键字底层做了一些优化"><span class="nav-number">3.15.2.</span> <span class="nav-text">JDK1.6 之后的 synchronized 关键字底层做了一些优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#无锁、偏向锁、轻量级锁、重量级锁"><span class="nav-number">3.15.3.</span> <span class="nav-text">无锁、偏向锁、轻量级锁、重量级锁</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Lock-接口"><span class="nav-number">3.16.</span> <span class="nav-text">Lock 接口</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Lock-提供-synchronized-不具备的特性"><span class="nav-number">3.16.1.</span> <span class="nav-text">Lock 提供 synchronized 不具备的特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AbstractQueueSynchronizer"><span class="nav-number">3.16.2.</span> <span class="nav-text">AbstractQueueSynchronizer</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ReentrantLock"><span class="nav-number">3.16.3.</span> <span class="nav-text">ReentrantLock</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ReentrantLock-如何实现公平和非公平锁"><span class="nav-number">3.16.3.1.</span> <span class="nav-text">ReentrantLock 如何实现公平和非公平锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#synchronized-和-ReentrantLock-区别"><span class="nav-number">3.16.3.2.</span> <span class="nav-text">synchronized 和 ReentrantLock 区别</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ReadWriteLock"><span class="nav-number">3.16.4.</span> <span class="nav-text">ReadWriteLock</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Atomic类"><span class="nav-number">3.17.</span> <span class="nav-text">Atomic类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本数据类型的原子类"><span class="nav-number">3.17.1.</span> <span class="nav-text">基本数据类型的原子类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Atomic-类如何保证原子性"><span class="nav-number">3.17.2.</span> <span class="nav-text">Atomic 类如何保证原子性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CAS-可能会导致什么问题？"><span class="nav-number">3.18.</span> <span class="nav-text">CAS 可能会导致什么问题？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#volatile-作用"><span class="nav-number">3.19.</span> <span class="nav-text">volatile 作用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java-中是如何实现线程同步的？"><span class="nav-number">3.20.</span> <span class="nav-text">Java 中是如何实现线程同步的？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#happens-before"><span class="nav-number">3.21.</span> <span class="nav-text">happens-before</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#volatile-和-sychronized-区别？"><span class="nav-number">3.22.</span> <span class="nav-text">volatile 和 sychronized 区别？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#乐观锁和悲观锁的区别？"><span class="nav-number">3.23.</span> <span class="nav-text">乐观锁和悲观锁的区别？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#悲观锁"><span class="nav-number">3.23.1.</span> <span class="nav-text">悲观锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#乐观锁"><span class="nav-number">3.23.2.</span> <span class="nav-text">乐观锁</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java-中有哪些锁？"><span class="nav-number">3.24.</span> <span class="nav-text">Java 中有哪些锁？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#线程池"><span class="nav-number">3.25.</span> <span class="nav-text">线程池</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#有哪几种创建线程池的方式？"><span class="nav-number">3.25.1.</span> <span class="nav-text">有哪几种创建线程池的方式？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#线程池有哪些参数？"><span class="nav-number">3.25.2.</span> <span class="nav-text">线程池有哪些参数？</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Jacky Bai</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      访客数
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      人
+    </span>
+  
+
+  
+    <span class="site-pv">
+      总访问
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      次
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+    
+      <script id="dsq-count-scr" src="https://.disqus.com/count.js" async></script>
+    
+
+    
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = 'http://xbaith/2020/06/06/Java%E9%9D%A2%E8%AF%95%E7%82%B9%E6%80%BB%E7%BB%93/';
+          this.page.identifier = '2020/06/06/Java面试点总结/';
+          this.page.title = 'Java面试点总结';
+        };
+        var d = document, s = d.createElement('script');
+        s.src = 'https://.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', '' + +new Date());
+        (d.head || d.body).appendChild(s);
+      </script>
+    
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: '0BMVPj2sDWYwMYfxkhQixwsg-gzGzoHsz',
+        appKey: '2tpAyy0EyltzwPFgiFsVFpT0',
+        placeholder: '留言',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
